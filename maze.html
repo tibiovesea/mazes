@@ -1,0 +1,355 @@
+<html>
+    <head>
+        <style>
+            .cell { background-color: #000; border: 1px solid transparent; float: left; }
+            .visited { background-color: #dfa; }
+            .breakRow { clear: both; }
+            .loopedTo { background-color: #adf;}
+            .loopedFrom { background-color: #fad;}
+
+            /*.wallNorth { border-top: 1px solid #000; }*/
+            /*.wallEast { border-right: 1px solid #000; }*/
+            /*.wallSouth { border-bottom: 1px solid #000; }*/
+            /*.wallWest { border-left: 1px solid #000; }*/
+
+            .cell { height: 3px; }
+            .cell { width: 3px; }
+        </style>
+    </head>
+    <body>
+        <div id="mazeWrapper"></div>
+        <script src="https://code.jquery.com/jquery-2.1.3.min.js"></script>
+        <script>
+            var Direction = function(x, y){
+                this.x = x;
+                this.y = y;
+                this.opposite = function() {
+                    return new Direction(x*-1,y*-1);
+                }
+
+                return this;
+            };
+
+            var Cell = function(x,y){
+                this.x = x;
+                this.y = y;
+                this.regionConnections = [];
+                this.visited = false;
+                this.loopedTo = false;
+                this.loopedFrom = false;
+                this.region = -1;
+                this.isConnection = false;
+
+                return this;
+            };
+
+            var Room = function(x,y,w,h) {
+                this.position = {x:x, y:y};
+                this.size = {width:w, height:h};
+                
+                this.top = this.position.y;
+                this.bottom = this.position.y + this.size.height;
+                this.left = this.position.x;
+                this.right = this.position.x + this.size.width
+
+                this.overlaps = function(room) {
+                    return !(this.left > room.right || this.right < room.left || this.top > room.bottom || this.bottom < room.top)
+                }
+
+                return this;
+            }
+
+            var SimpleMaze = function(columns, rows) {
+                this.cells = new Array();
+                this.rooms = new Array();
+                this.columns = columns % 2 == 0 ? columns + 1 : columns;
+                this.rows = rows % 2 == 0 ? rows + 1 : rows;
+                this.directions2 = [
+                    new Direction(1,0),
+                    new Direction(-1,0),
+                    new Direction(0,1),
+                    new Direction(0,-1)
+                ];
+                this.regions = [];
+                this.currentRegion = 0;
+                this.connections = [];
+                this.multipleConnectionsForSameRegionChance = 90;
+
+                this.loopFactor = 7;
+                this.steps = 0;
+                this.backtrack = 0;
+                this.maxBacktrack = 20;
+                this.maxStepsBeforeBacktrack = 50;
+
+                this.windingPercent = 50;
+                this.maxRoomPlacementTries = 50;
+
+
+                //+ Jonas Raoni Soares Silva
+                //@ http://jsfromhell.com/array/shuffle [v1.0]
+                this.shuffle = function(o){ //v1.0
+                    for(var j, x, i = o.length; i; j = Math.floor(Math.random() * i), x = o[--i], o[i] = o[j], o[j] = x);
+                    return o;
+                };
+
+                this.init = function() {
+                    for(var c = 0; c < this.columns; c++) {
+                        this.cells[c] = [];
+                        for(var r = 0; r < this.rows; r++) {
+                            this.cells[c][r] = new Cell(c,r);
+                        }
+                    }
+                };
+
+                this.generate = function(){
+                    this.addRooms();
+//                    return;
+
+                    for(var y = 1; y < this.rows; y += 2){
+                        for(var x = 1; x < this.columns; x += 2){
+                            var currentCell = this.getCell(x,y);
+                            if(currentCell.visited) {
+                                continue;
+                            }
+                            this.growMaze(currentCell);
+                        }
+                    }
+
+                    this.addConnections();
+                    this.carveConnections();
+                    this.removeDeadEnds();
+                };
+
+                this.removeDeadEnds = function() {
+                    var done = false;
+                    while(!done) {
+                        done = true;
+                        for(var y=0;y<this.rows;y++){
+                            for(var x=0;x<this.columns;x++){
+                                var cell = this.getCell(x,y);
+                                if(!cell.visited){
+                                    continue;
+                                }
+                                var exits = [];
+                                for(var dir of this.directions2){
+                                    var neighbor = this.getCell(x+dir.x, y+dir.y);
+                                    if(neighbor && neighbor.visited) {
+                                        exits.push(neighbor);
+                                    }
+                                }
+                                if(exits.length != 1) {
+                                    continue;
+                                }
+
+                                done = false;
+                                this.getCell(x,y).visited = false;
+                            }
+                        }
+                    }
+                };
+
+                this.addConnections = function() {
+                    for(var y = 1; y < this.rows - 1; y++) {
+                        for(var x = 1; x < this.columns - 1; x++) {
+                            var c = this.getCell(x,y);
+                            if(c.visited) {
+                                continue;
+                            }
+
+                            var differingRegions = [];
+                            var regionConnections = [];
+                            for(var d of this.directions2) {
+                                var neighbor = this.getCell(c.x + d.x, c.y + d.y);
+                                if(neighbor.visited && differingRegions.indexOf(neighbor.region) < 0){
+                                    differingRegions.push(neighbor.region);
+                                    regionConnections.push(neighbor);
+                                }
+                            }
+                            if(differingRegions.length >= 2) {
+                                c.isConnection = true;
+                                c.regionConnections = regionConnections;
+                                this.connections.push(c);
+                            }
+                        }
+                    }
+                }
+
+                this.carveConnections = function() {
+                    var shuffledConnections = this.shuffle(this.connections);
+                    for(var cell of shuffledConnections) {
+                        var connectedToRegions = [];
+                        for(var connectionCell of cell.regionConnections){
+                            if(connectedToRegions.indexOf(connectionCell.region) < 0){
+                                connectedToRegions.push(connectionCell.region);
+                            }
+                        }
+                        if(connectedToRegions.length >= 2 || (Math.random()*100) > this.multipleConnectionsForSameRegionChance) {
+                            this.currentRegion = connectedToRegions[0];
+//                            cell.isConnection = false;
+                            this.carve(cell);
+                            if(connectedToRegions.length >= 2) {
+                                this.mergeRegions(connectedToRegions[0], connectedToRegions[1]);
+                            }
+                        } else {
+                            cell.isConnection = false;
+                        }
+                    }
+                };
+
+                this.mergeRegions = function(region1, region2) {
+                    for(var y=0; y < this.rows; y++) {
+                        for(var x=0; x<this.columns;x++){
+                            var cell = this.getCell(x,y);
+                            if(cell.region === region2){
+                                cell.region = region1;
+                            }
+                        }
+                    }
+                };
+
+                this.addRooms = function() {
+                    for(var i = 0; i < this.maxRoomPlacementTries; i++) {
+                        var roomWidth = this.getRandomOddGridPosition(7, 21);
+                        var roomLength = this.getRandomOddGridPosition(7, 21);
+                        var x = this.getRandomOddGridPosition(0, this.columns, roomWidth);
+                        var y = this.getRandomOddGridPosition(0, this.rows, roomLength);
+
+                        var currentRoom = new Room(x,y,roomWidth,roomLength);
+                        var overlaps = false;
+                        for(var r of this.rooms) {
+                            if(r.overlaps(currentRoom)){
+                                overlaps = true;
+                                break;
+                            }
+                        }
+
+                        if(overlaps) {
+                            continue;
+                        }
+                        this.rooms.push(currentRoom);
+                        this.carveRoom(currentRoom)
+                    }
+                }
+
+                this.getRandomOddGridPosition = function(lowerBound, upperBound, upperOffset){
+                    var n = Math.floor(Math.random() * upperBound * 10) % upperBound;
+                    n = n <= lowerBound ? lowerBound : n;
+                    n = n % 2 == 0 ? n + 1 : n;
+                    n = n > upperBound - upperOffset - 1 ? upperBound - upperOffset - 1 : n;
+                    return n;
+
+                }
+
+                this.startRegion = function() {
+                    this.currentRegion += 1;
+                }
+
+                this.carveRoom = function(room){
+                    this.startRegion();
+                    for(var c = room.position.x; c < room.position.x+room.size.width; c++) {
+                        for(var r = room.position.y; r < room.position.y+room.size.height; r++) {
+                            this.carve(this.getCell(c,r));
+                        }
+                    }
+                };
+
+                this.growMaze = function(startCell) {
+                    var possibleCells = [];
+                    var lastDirection;
+
+                    this.startRegion();
+                    this.carve(startCell);
+
+                    possibleCells.push(startCell);
+                    while(possibleCells.length > 0){
+                        var cell = possibleCells[possibleCells.length-1];
+
+                        var possibleDirections = [];
+                        for(var d in this.shuffle(this.directions2)) {
+                            if(this.canCarve(cell, this.directions2[d])){
+                                possibleDirections.push(this.directions2[d]);
+                            }
+                        }
+
+                        if(possibleDirections.length > 0) {
+                            var carvingDirection;
+                            if(possibleDirections.indexOf(lastDirection) >= 0 && Math.random()*100 > this.windingPercent){
+                                carvingDirection = lastDirection;
+                            }else{
+                                carvingDirection = possibleDirections.pop();
+                            }
+                            var toCarve = this.getCell(cell.x + carvingDirection.x, cell.y + carvingDirection.y);
+                            this.carve(toCarve);
+                            toCarve = this.getCell(cell.x + carvingDirection.x*2, cell.y + carvingDirection.y*2);
+                            this.carve(toCarve);
+
+                            possibleCells.push(toCarve);
+                            lastDirection = carvingDirection;
+                        } else {
+                            possibleCells.splice(possibleCells.length-1,1);
+                            lastDirection = null;
+                        }
+                    }
+                };
+
+                this.getCell = function(x,y) {
+                    if(x < 0 || y < 0 || x >= this.columns || y >= this.rows){
+                        return undefined;
+                    }
+                    return this.cells[x][y];
+                };
+                this.carve = function(cell) {
+                    cell.visited = true;
+                    cell.region = this.currentRegion;
+                };
+                this.canCarve = function(cell, direction) {
+                    if(!this.containsPosition(cell.x + direction.x*3, cell.y + direction.y*3)) {
+                        return false;
+                    }
+                    return this.getCell(cell.x + direction.x*2, cell.y + direction.y*2).visited === false;
+                };
+                this.containsPosition = function(x,y) {
+                    return x >= 0 && y >= 0 && x < this.columns && y < this.rows;
+                };
+
+                return this;
+            };
+
+            $(document).ready(function(){
+                var m = new SimpleMaze(100,100);
+                m.init();
+//                m.carveSimple(m.columns/2, m.rows/2, "west");
+//                m.growMaze(m.cells[1][1]);
+                m.generate();
+
+                var handler = function(){
+                    console.log($(this).data());
+                    return true;
+                };
+
+                for(var r = 0; r < m.rows; r++){
+                    for(var c = 0; c < m.columns; c++){
+                        var cellData = m.getCell(c,r);
+                        var cellUi = $("<div/>")
+                                .addClass("cell")
+                                .data(cellData)
+                                .on("click", handler);
+                        //formatting
+                        if(c === 0) {
+                            cellUi.addClass("breakRow");
+                        }
+                        if(cellData.visited) {
+                            cellUi.addClass("visited");
+                        }
+                        if(cellData.isConnection)
+                        {
+                            cellUi.addClass("loopedTo");
+                        }
+
+                        $("#mazeWrapper").append(cellUi);
+                    }
+                }
+            });
+        </script>
+    </body>
+</html>
