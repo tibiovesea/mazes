@@ -47,40 +47,38 @@
     <script src="./RandomMazeCarver.js"></script>
     <script>
         $(document).ready(function() {
+            console.log("START:", (new Date()).toJSON());
+            var m = new Maze(100, 100);
+            var mc = new RandomMazeCarver(m);
+            mc.generate();
+            console.log("MAZE:", (new Date()).toJSON());
 
-        });
-
-        console.log("START:", (new Date()).toJSON());
-        var m = new Maze(100, 100);
-        var mc = new RandomMazeCarver(m);
-        mc.generate();
-        console.log("MAZE:", (new Date()).toJSON());
-
-        var handler = function() {
-            console.log($(this).data());
-            return true;
-        };
-        for (var r = 0; r < mc.maze.rows; r++) {
-            for (var c = 0; c < mc.maze.columns; c++) {
-                var cellData = mc.maze.getCell(c, r);
-                var cellUi = $("<div/>")
-                    .addClass("cell")
-                    .data(cellData)
-                    .on("click", handler);
-                //formatting
-                if (c === 0) {
-                    cellUi.addClass("breakRow");
+            var handler = function() {
+                console.log($(this).data());
+                return true;
+            };
+            for (var r = 0; r < mc.maze.rows; r++) {
+                for (var c = 0; c < mc.maze.columns; c++) {
+                    var cellData = mc.maze.getCell(c, r);
+                    var cellUi = $("<div/>")
+                        .addClass("cell")
+                        .data(cellData)
+                        .on("click", handler);
+                    //formatting
+                    if (c === 0) {
+                        cellUi.addClass("breakRow");
+                    }
+                    if (cellData.visited) {
+                        cellUi.addClass("visited");
+                    }
+                    if (cellData.isConnection) {
+                        cellUi.addClass("loopedTo");
+                    }
+                    $("#mazeWrapper").append(cellUi);
                 }
-                if (cellData.visited) {
-                    cellUi.addClass("visited");
-                }
-                if (cellData.isConnection) {
-                    cellUi.addClass("loopedTo");
-                }
-                $("#mazeWrapper").append(cellUi);
             }
-        }
-        console.log("END:", (new Date()).toJSON());
+            console.log("END:", (new Date()).toJSON());
+        });
     </script>
 </body>
 
