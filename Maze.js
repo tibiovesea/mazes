@@ -30,6 +30,15 @@ function Direction(x, y) {
 Direction.prototype.opposite = function() {
     return new Direction(x * -1, y * -1);
 };
+Direction.prototype.equals = function(direction) {
+    if (direction === null) {
+        return false;
+    }
+    if (!(direction instanceof Direction)) {
+        return false;
+    }
+    return direction.x === this.x && direction.y === this.y;
+};
 
 function Cell(x, y) {
     this.x = x;

@@ -10,7 +10,7 @@ function RoomAndCorridorMazeCarver(mz) {
     this.multipleConnectionsForSameRegionChance = 0;
     this.roomMinSize = 5;
     this.roomMaxSize = 10;
-    this.windingPercent = 50;
+    this.windingPercent = 0.5;
     this.maxRoomPlacementTries = 200;
 
     this.maze = mz;
@@ -67,7 +67,7 @@ RoomAndCorridorMazeCarver.prototype.growMaze = function(startCell) {
         }
         if (possibleDirections.length > 0) {
             var carvingDirection;
-            if (possibleDirections.indexOf(lastDirection) >= 0 && Math.random() * 100 > this.windingPercent) {
+            if (possibleDirections.indexOf(lastDirection) >= 0 && Math.random() > this.windingPercent) {
                 carvingDirection = lastDirection;
             } else {
                 carvingDirection = possibleDirections.pop();
@@ -150,6 +150,7 @@ RoomAndCorridorMazeCarver.prototype.removeDeadEnds = function() {
                 }
                 done = false;
                 this.maze.getCell(x, y).visited = false;
+                this.maze.getCell(x, y).isConnection = false;
             }
         }
     }
@@ -182,7 +183,7 @@ RoomAndCorridorMazeCarver.prototype.carve = function(cell) {
     if (!(cell instanceof Cell)) {
         throw "can only carve Cell objects";
     }
-    
+
     cell.visited = true;
     cell.region = this.currentRegion;
 };

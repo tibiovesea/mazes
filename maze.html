@@ -4,7 +4,7 @@
     <title>Mazes</title>
     <style>
         .cell {
-            background-color: #000;
+            background-color: #222;
             border: 1px solid transparent;
             float: left;
         }
@@ -36,6 +36,42 @@
         .cell {
             width: 3px;
         }
+        
+        .region1 {
+            background-color: #f00;
+        }
+        
+        .region2 {
+            background-color: #0f0;
+        }
+        
+        .region3 {
+            background-color: #55f;
+        }
+        
+        .region4 {
+            background-color: #ff0;
+        }
+        
+        .region5 {
+            background-color: #f0f;
+        }
+        
+        .region6 {
+            background-color: #0ff;
+        }
+        
+        .region7 {
+            background-color: #f90;
+        }
+        
+        .region8 {
+            background-color: #fa9;
+        }
+        
+        .region9 {
+            background-color: #0f9;
+        }
     </style>
 </head>
 
@@ -45,40 +81,45 @@
     <script src="./Maze.js"></script>
     <script src="./RoomAndCorridorMazeCarver.js"></script>
     <script src="./RandomMazeCarver.js"></script>
+    <script src="./CaveMazeCarver.js"></script>
     <script>
-        $(document).ready(function() {
-            console.log("START:", (new Date()).toJSON());
-            var m = new Maze(100, 100);
-            var mc = new RandomMazeCarver(m);
-            mc.generate();
-            console.log("MAZE:", (new Date()).toJSON());
+        // $(document).ready(function() {
+        // });
 
-            var handler = function() {
-                console.log($(this).data());
-                return true;
-            };
-            for (var r = 0; r < mc.maze.rows; r++) {
-                for (var c = 0; c < mc.maze.columns; c++) {
-                    var cellData = mc.maze.getCell(c, r);
-                    var cellUi = $("<div/>")
-                        .addClass("cell")
-                        .data(cellData)
-                        .on("click", handler);
-                    //formatting
-                    if (c === 0) {
-                        cellUi.addClass("breakRow");
-                    }
-                    if (cellData.visited) {
-                        cellUi.addClass("visited");
-                    }
-                    if (cellData.isConnection) {
-                        cellUi.addClass("loopedTo");
-                    }
-                    $("#mazeWrapper").append(cellUi);
+        console.log("START:", (new Date()).toJSON());
+        var m = new Maze(100, 100);
+        var mc = new CaveMazeCarver(m);
+        mc.generate();
+        console.log("MAZE:", (new Date()).toJSON());
+
+        var handler = function() {
+            console.log($(this).data());
+            return true;
+        };
+        for (var r = 0; r < mc.maze.rows; r++) {
+            for (var c = 0; c < mc.maze.columns; c++) {
+                var cellData = mc.maze.getCell(c, r);
+                var cellUi = $("<div/>")
+                    .addClass("cell")
+                    .data(cellData)
+                    .on("click", handler);
+                //formatting
+                if (c === 0) {
+                    cellUi.addClass("breakRow");
                 }
+                if (cellData.visited) {
+                    cellUi.addClass("visited");
+                }
+                if (cellData.isConnection) {
+                    cellUi.addClass("loopedTo");
+                }
+                if (cellData.region >= 0) {
+                    cellUi.addClass("region" + cellData.region);
+                }
+                $("#mazeWrapper").append(cellUi);
             }
-            console.log("END:", (new Date()).toJSON());
-        });
+        }
+        console.log("END:", (new Date()).toJSON());
     </script>
 </body>
 
