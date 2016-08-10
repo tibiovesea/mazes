@@ -5,7 +5,8 @@
     <style>
         .cell {
             background-color: #222;
-            border: 1px solid transparent;
+            border: none;
+            /* 1px solid transparent; */
             float: left;
         }
         
@@ -13,21 +14,11 @@
             background-color: #dfa;
         }
         
-        .breakRow {
+        .breakRow,
+        .cellInfo,
+        .mazeWrapper {
             clear: both;
         }
-        
-        .loopedTo {
-            background-color: #adf;
-        }
-        
-        .loopedFrom {
-            background-color: #fad;
-        }
-        /*.wallNorth { border-top: 1px solid #000; }*/
-        /*.wallEast { border-right: 1px solid #000; }*/
-        /*.wallSouth { border-bottom: 1px solid #000; }*/
-        /*.wallWest { border-left: 1px solid #000; }*/
         
         .cell {
             height: 3px;
@@ -72,12 +63,23 @@
         .region9 {
             background-color: #0f9;
         }
+        
+        .loopedTo {
+            background-color: #adf;
+        }
+        
+        .loopedFrom {
+            background-color: #fad;
+        }
     </style>
 </head>
 
 <body>
     <div id="mazeWrapper"></div>
+    <pre id="cellInfo">Cell Info</pre>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/seedrandom/2.4.2/seedrandom.min.js"></script>
     <script src="https://code.jquery.com/jquery-3.1.0.slim.min.js" integrity="sha256-cRpWjoSOw5KcyIOaZNo4i6fZ9tKPhYYb6i5T9RSVJG8=" crossorigin="anonymous"></script>
+
     <script src="./Maze.js"></script>
     <script src="./RoomAndCorridorMazeCarver.js"></script>
     <script src="./RandomMazeCarver.js"></script>
@@ -85,6 +87,8 @@
     <script>
         // $(document).ready(function() {
         // });
+        // Math.seedrandom("bob");
+        console.log(Math.seedrandom());
 
         console.log("START:", (new Date()).toJSON());
         var m = new Maze(100, 100);
@@ -92,8 +96,12 @@
         mc.generate();
         console.log("MAZE:", (new Date()).toJSON());
 
-        var handler = function() {
+        var clickHandler = function() {
             console.log($(this).data());
+            return true;
+        };
+        var hoverHandler = function() {
+            $("#cellInfo").html(JSON.stringify($(this).data(), null, "  "));
             return true;
         };
         for (var r = 0; r < mc.maze.rows; r++) {
@@ -102,7 +110,8 @@
                 var cellUi = $("<div/>")
                     .addClass("cell")
                     .data(cellData)
-                    .on("click", handler);
+                    .on("click", clickHandler)
+                    .on("mouseover", hoverHandler);
                 //formatting
                 if (c === 0) {
                     cellUi.addClass("breakRow");
